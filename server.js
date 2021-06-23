@@ -17,7 +17,7 @@ const connection = new Pool({
     database: 'mywallet',
 });
 
-/*------------------ SIGN-UP-----------------*/
+/*------------------ SIGN-UP -----------------*/
 
 app.post('/sign-up', async (req, res) => {
     const { name, email, password } = req.body;
@@ -47,11 +47,11 @@ app.post('/sign-up', async (req, res) => {
     }
 });
 
-/*------------------ SIGN-IN-----------------*/
+/*------------------ SIGN-IN -----------------*/
 
 app.get('/sign-in', async (req, res) => {
-    const { email, password, id } = req.body;
-    if (!email || !password || !id) {
+    const { email, password } = req.body;
+    if (!email || !password) {
         res.sendStatus(400);
     } else {
         try {
@@ -81,7 +81,7 @@ app.get('/sign-in', async (req, res) => {
     }
 });
 
-/*------------------ LOGOUT-----------------*/
+/*------------------ LOGOUT -----------------*/
 
 app.post('/logout', async (req, res) => {
     const authorization = req.headers.authorization;
@@ -92,6 +92,95 @@ app.post('/logout', async (req, res) => {
                 token,
             ]);
             res.sendStatus(201);
+        } else {
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
+/*------------------- CREDIT -----------------*/
+
+app.post('/credit', async (req, res) => {
+    const authorization = req.headers.authorization;
+    const token = authorization?.replace('Bearer ', '');
+    const { item, credit } = req.body;
+
+    try {
+        const request = await connection.query(
+            'SELECT * FROM sessions WHERE token = $1',
+            [token]
+        );
+        const customer = request.rows[0];
+        if (token && customer) {
+            await connection.query(
+                'INSERT INTO credits (item, credit, "customerId") VALUES ($1, $2, $3)',
+                [item, credit, customer.customerId]
+            );
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
+/*------------------- DEBIT -----------------*/
+
+app.post('/debit', async (req, res) => {
+    const authorization = req.headers.authorization;
+    const token = authorization?.replace('Bearer ', '');
+    const { item, debit } = req.body;
+
+    try {
+        const request = await connection.query(
+            'SELECT * FROM sessions WHERE token = $1',
+            [token]
+        );
+        const customer = request.rows[0];
+        if (token && customer) {
+            await connection.query(
+                'INSERT into debits (item, debit, "customerId") VALUES ($1, $2, $3)',
+                [item, debit, customer.customerId]
+            );
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
+/*------------------- BALANCE -----------------*/
+
+app.get('/balance', async (req, res) => {
+    const authorization = req.headers.authorization;
+    const token = authorization?.replace('Bearer ', '');
+    try {
+        const request = await connection.query(
+            'SELECT * FROM sessions WHERE token = $1',
+            [token]
+        );
+        const customer = request.rows[0];
+        if (token && customer) {
+            const requestCredits = await connection.query(
+                `SELECT * FROM credits 
+                 WHERE credits."customerId" = $1`,
+                [customer.customerId]
+            );
+            const requestDebits = await connection.query(
+                `SELECT * FROM debits
+                 WHERE debits."customerId" = $1`,
+                [customer.customerId]
+            );
+            const response = [...requestCredits.rows, ...requestDebits.rows];
+            res.send(response);
         } else {
             res.sendStatus(401);
         }
