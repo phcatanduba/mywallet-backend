@@ -81,9 +81,9 @@ app.get('/sign-in', async (req, res) => {
     }
 });
 
-/*------------------ SIGN-OUT-----------------*/
+/*------------------ LOGOUT-----------------*/
 
-app.post('/sign-out', async (req, res) => {
+app.post('/logout', async (req, res) => {
     const authorization = req.headers.authorization;
     const token = authorization?.replace('Bearer ', '');
     try {
