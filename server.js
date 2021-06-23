@@ -81,6 +81,26 @@ app.get('/sign-in', async (req, res) => {
     }
 });
 
+/*------------------ SIGN-OUT-----------------*/
+
+app.post('/sign-out', async (req, res) => {
+    const authorization = req.headers.authorization;
+    const token = authorization?.replace('Bearer ', '');
+    try {
+        if (token) {
+            await connection.query('DELETE FROM sessions WHERE token = $1', [
+                token,
+            ]);
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+});
+
 app.listen(4000, () => {
     console.log('Server is running!');
 });
