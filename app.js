@@ -1,21 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
-import pg from 'pg';
-import { v4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
+import connection from './connection.js';
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
-const { Pool } = pg;
-const connection = new Pool({
-    user: 'postgres',
-    password: '123456',
-    host: 'localhost',
-    port: 5432,
-    database: 'mywallet',
-});
 
 /*------------------ SIGN-UP -----------------*/
 
@@ -61,7 +53,7 @@ app.post('/sign-in', async (req, res) => {
             );
             const customer = request.rows[0];
             if (customer && bcrypt.compareSync(password, customer.password)) {
-                const token = v4();
+                const token = uuid();
                 await connection.query(
                     `
               INSERT INTO sessions ("customerId", token)
@@ -108,24 +100,28 @@ app.post('/credit', async (req, res) => {
     const token = authorization?.replace('Bearer ', '');
     const { item, credit } = req.body;
 
-    try {
-        const request = await connection.query(
-            'SELECT * FROM sessions WHERE token = $1',
-            [token]
-        );
-        const customer = request.rows[0];
-        if (token && customer) {
-            await connection.query(
-                'INSERT INTO credits (date, item, credit, "customerId") VALUES (NOW(), $1, $2, $3)',
-                [item, credit, customer.customerId]
+    if (!item || !credit || isNaN(credit)) {
+        res.sendStatus(400);
+    } else {
+        try {
+            const request = await connection.query(
+                'SELECT * FROM sessions WHERE token = $1',
+                [token]
             );
-            res.sendStatus(201);
-        } else {
-            res.sendStatus(401);
+            const customer = request.rows[0];
+            if (token && customer) {
+                await connection.query(
+                    'INSERT INTO credits (date, item, credit, "customerId") VALUES (NOW(), $1, $2, $3)',
+                    [item, credit, customer.customerId]
+                );
+                res.sendStatus(201);
+            } else {
+                res.sendStatus(401);
+            }
+        } catch (e) {
+            console.log(e);
+            res.sendStatus(500);
         }
-    } catch (e) {
-        console.log(e);
-        res.sendStatus(500);
     }
 });
 
@@ -135,25 +131,28 @@ app.post('/debit', async (req, res) => {
     const authorization = req.headers.authorization;
     const token = authorization?.replace('Bearer ', '');
     const { item, debit } = req.body;
-
-    try {
-        const request = await connection.query(
-            'SELECT * FROM sessions WHERE token = $1',
-            [token]
-        );
-        const customer = request.rows[0];
-        if (token && customer) {
-            await connection.query(
-                'INSERT into debits (date, item, debit, "customerId") VALUES (NOW(), $1, $2, $3)',
-                [item, debit, customer.customerId]
+    if (!item || !debit || isNaN(debit)) {
+        res.sendStatus(400);
+    } else {
+        try {
+            const request = await connection.query(
+                'SELECT * FROM sessions WHERE token = $1',
+                [token]
             );
-            res.sendStatus(201);
-        } else {
-            res.sendStatus(401);
+            const customer = request.rows[0];
+            if (token && customer) {
+                await connection.query(
+                    'INSERT into debits (date, item, debit, "customerId") VALUES (NOW(), $1, $2, $3)',
+                    [item, debit, customer.customerId]
+                );
+                res.sendStatus(201);
+            } else {
+                res.sendStatus(401);
+            }
+        } catch (e) {
+            console.log(e);
+            res.sendStatus(500);
         }
-    } catch (e) {
-        console.log(e);
-        res.sendStatus(500);
     }
 });
 
