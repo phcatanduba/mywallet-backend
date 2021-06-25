@@ -116,7 +116,7 @@ app.post('/credit', async (req, res) => {
         const customer = request.rows[0];
         if (token && customer) {
             await connection.query(
-                'INSERT INTO credits (item, credit, "customerId") VALUES ($1, $2, $3)',
+                'INSERT INTO credits (date, item, credit, "customerId") VALUES (NOW(), $1, $2, $3)',
                 [item, credit, customer.customerId]
             );
             res.sendStatus(201);
@@ -144,7 +144,7 @@ app.post('/debit', async (req, res) => {
         const customer = request.rows[0];
         if (token && customer) {
             await connection.query(
-                'INSERT into debits (item, debit, "customerId") VALUES ($1, $2, $3)',
+                'INSERT into debits (date, item, debit, "customerId") VALUES (NOW(), $1, $2, $3)',
                 [item, debit, customer.customerId]
             );
             res.sendStatus(201);
@@ -169,7 +169,6 @@ app.get('/balance', async (req, res) => {
             [token]
         );
         const customer = request.rows[0];
-        console.log(customer);
         if (token && customer) {
             const requestCredits = await connection.query(
                 `SELECT * FROM credits 
